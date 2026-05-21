@@ -8,7 +8,7 @@ create table students (
 );
 
 create table course (
-    course_name varchar(20) not null,
+    course_name varchar(60) not null,
     course_code varchar(20) primary key,
     credit numeric(3,1) not null,
     remark varchar(20) -- 必修/選修/通識
