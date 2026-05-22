@@ -19,6 +19,7 @@ PASSING_STATUSES = {"通過"}
 IGNORED_STATUSES = {"停修", "成績未到或無成績"}
 ENGLISH_COURSE_NAMES = {"大學英文（一）", "大學英文（二）"}
 CHINESE_COURSE_KEYWORDS = ("國文－", "進階國文－")
+ENGLISH_COURSE_CODE_PREFIX = "599"
 CORE_COURSES = {
     "人文通": {
         "藝術與當代社會",
@@ -85,6 +86,10 @@ def _is_english_course(course_name: str) -> bool:
     return course_name in ENGLISH_COURSE_NAMES
 
 
+def _is_english_elective_course(course_code: str) -> bool:
+    return course_code.startswith(ENGLISH_COURSE_CODE_PREFIX)
+
+
 def _is_chinese_course(course_name: str) -> bool:
     return any(keyword in course_name for keyword in CHINESE_COURSE_KEYWORDS)
 
@@ -114,6 +119,7 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
                 JOIN course c ON c.course_code = l.course_code
                 WHERE (
                     c.course_name IN (%s, %s) OR
+                    c.course_code LIKE %s OR
                     c.course_name LIKE %s OR
                     c.course_name LIKE %s OR
                     (
@@ -131,6 +137,7 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
                     student_id,
                     "大學英文（一）",
                     "大學英文（二）",
+                    "599%",
                     "%國文－%",
                     "%進階國文－%",
                     "%人文通%",
@@ -146,7 +153,12 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
     for row in rows:
         course_name, course_code, credit, remark, special_attribute, score, course_status = row
         domains = _parse_domains(remark)
-        if not domains and not _is_chinese_course(course_name) and not _is_english_course(course_name):
+        if (
+            not domains
+            and not _is_chinese_course(course_name)
+            and not _is_english_course(course_name)
+            and not _is_english_elective_course(course_code)
+        ):
             continue
         courses.append(
             {
@@ -252,7 +264,10 @@ def _build_language_summary(courses: list[dict]) -> dict:
             "counted_credit": 0.0,
         }
         for course in courses
-        if course["passed"] and _is_english_course(course["course_name"])
+        if course["passed"] and (
+            _is_english_course(course["course_name"])
+            or _is_english_elective_course(course["course_code"])
+        )
     ]
     chinese_courses = [
         {

@@ -1,10 +1,15 @@
 from app.db.queries import fetch_course_records
 
 PASS = 60.0
+NATIONAL_DEFENSE_COURSE_PREFIX = "全民國防"
 
 def _is_passed(course: dict) -> bool:
     score = course["score"]
     return (score is not None and score >= PASS) or course["course_status"] == "通過"
+
+
+def _is_excluded_from_elective(course: dict) -> bool:
+    return course["course_name"].startswith(NATIONAL_DEFENSE_COURSE_PREFIX)
 
 # 計算選修學分
 # require : Required() 回傳的 passed set（已通過的必修課名）
@@ -29,6 +34,8 @@ def Elective(student_id: str, require: set, group: list, general: dict, pc: dict
     total_credits = 0.0
     for c in courses:
         if not _is_passed(c):
+            continue
+        if _is_excluded_from_elective(c):
             continue
         if c["course_code"] in used_codes or c["course_name"] in used_names:
             continue

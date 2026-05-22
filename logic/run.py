@@ -114,7 +114,7 @@ def print_summary(req_credits, grp_credits, gen_credits, phy_credits, elec_total
 
 
 def main():
-    student_id = "112703037"
+    student_id = "112703003"
 
     req_ok, req_missing, req_passed, req_credits = Required(student_id)
     grp = Group(student_id)
