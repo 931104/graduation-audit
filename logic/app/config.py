@@ -9,14 +9,16 @@ _pool = pool.SimpleConnectionPool(
     minconn=1,
     maxconn=10,
     host=os.getenv("DB_HOST", "localhost"),
-    port=os.getenv("DB_PORT", 5433),
+    port=int(os.getenv("DB_PORT", "5432")),
     database=os.getenv("DB_NAME", "myapp"),
     user=os.getenv("DB_USER", "admin"),
-    password=os.getenv("DB_PASSWORD", "123456"),
+    password=os.getenv("DB_PASSWORD", "admin"),
 )
+
 
 def get_conn():
     return _pool.getconn()
+
 
 def put_conn(conn):
     _pool.putconn(conn)

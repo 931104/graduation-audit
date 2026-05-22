@@ -1,0 +1,20 @@
+{
+  "department": "CS",
+  "year": "112",
+  "required_course": [
+    {"course_code": "000713012", "course_name": "微積分甲", "credit": "3.0"},
+    {"course_code": "000713011", "course_name": "微積分甲", "credit": "3.0"},
+    {"course_code": "703049001", "course_name": "計算機程式設計（一）", "credit": "3.0"},
+    {"course_code": "703009001", "course_name": "物件導向程式設計", "credit": "3.0"},
+    {"course_code": "703002001", "course_name": "線性代數", "credit": "3.0"},
+    {"course_code": "703017001", "course_name": "機率論", "credit": "3.0"},
+    {"course_code": "703007001", "course_name": "離散數學", "credit": "3.0"},
+    {"course_code": "703008001", "course_name": "資料結構", "credit": "3.0"},
+    {"course_code": "703022001", "course_name": "演算法", "credit": "3.0"},
+    {"course_code": "703056001", "course_name": "程式能力檢定", "credit": "0.0"},
+    {"course_code": "703014001", "course_name": "數位系統導論", "credit": "3.0"},
+    {"course_code": "703015001", "course_name": "數位系統實驗", "credit": "0.0"},
+    {"course_code": "703016001", "course_name": "作業系統", "credit": "3.0"},
+    {"course_code": "703019001", "course_name": "計算機結構與組織", "credit": "3.0"}
+  ]
+}
