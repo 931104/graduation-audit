@@ -97,7 +97,7 @@ docker exec -it my-postgres psql -U admin -d myapp
 ### 第 4 步：準備學生資料
 
 將全人系統匯出的 JSON 檔案放到 `data/` 目錄，檔名需符合 `exportStudentData*.json` 格式：
-
+建立根目錄下的data資料夾
 ```
 data/
 ├── exportStudentData.json
@@ -204,9 +204,10 @@ python3 database/import.py data/exportStudentData_h.json
 
 ## 資料庫連線設定
 
-連線參數定義在 `logic/.env`：
+所有連線參數統一定義在**根目錄 `.env`**，其他檔案皆從這裡讀取，只需改一個地方：
 
 ```
+# .env（根目錄）
 DB_HOST=localhost
 DB_PORT=5433
 DB_NAME=myapp
@@ -214,7 +215,17 @@ DB_USER=admin
 DB_PASSWORD=123456
 ```
 
-與 `database/docker-compose.yml` 對應，若需修改請兩者同步更新。
+各檔案的讀取方式：
+
+| 檔案 | 讀取方式 |
+|------|---------|
+| `database/docker-compose.yml` | Docker Compose 自動讀取執行目錄的 `.env`，以 `${DB_*}` 代入 |
+| `database/import.py` | python-dotenv，路徑由 `__file__` 計算至根目錄 |
+| `logic/app/config.py` | python-dotenv，路徑由 `__file__` 計算至根目錄 |
+
+> **port 說明**：`docker-compose.yml` 的 `${DB_PORT}:5432` 是 `host:container`。
+> 容器內部監聽 `5432`，外部連線（import.py / config.py）使用 `DB_PORT=5433`。
+> 若本機已有 PostgreSQL 佔用 5432，此設定可避免衝突。
 
 ---
 

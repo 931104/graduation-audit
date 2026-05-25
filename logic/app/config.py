@@ -1,18 +1,18 @@
-# 讀取.env，並進行DB的連線
 from psycopg2 import pool
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(_ROOT, ".env"))
 
 _pool = pool.SimpleConnectionPool(
     minconn=1,
     maxconn=10,
     host=os.getenv("DB_HOST", "localhost"),
-    port=int(os.getenv("DB_PORT", "5432")),
+    port=int(os.getenv("DB_PORT", "5433")),
     database=os.getenv("DB_NAME", "myapp"),
     user=os.getenv("DB_USER", "admin"),
-    password=os.getenv("DB_PASSWORD", "admin"),
+    password=os.getenv("DB_PASSWORD", "123456"),
 )
 
 
