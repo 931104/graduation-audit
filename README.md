@@ -1,9 +1,220 @@
-# graduate-detector
-這個專案是要進行畢業學分的檢核，利用database存每個學生的修課紀錄
-並提供一個網頁，學生輸入自己的基本資料(名字/ID)
 # Graduation Audit System
 
-以資訊科學系 112 學年入學畢業門檻為基準，分析學生必修、通識、體育、群修等各類別差幾學分畢業。資料來源為全人系統匯出的 JSON，排除雙主修、輔系，只審查原系畢業資格。
+以資訊科學系 112 學年入學畢業門檻為基準，分析學生必修、群修、通識、體育、自由選修各類別差幾學分畢業。
+資料來源為全人系統匯出的 JSON，僅審查原系畢業資格（排除雙主修、輔系）。
+
+---
+
+## 專案結構
+
+```
+graduation-audit/
+├── data/                        # 全人系統匯出的學生 JSON 資料
+│   └── exportStudentData*.json
+├── database/
+│   ├── docker-compose.yml       # PostgreSQL 容器設定
+│   ├── schema.sql               # 資料庫建表 DDL（容器啟動時自動執行）
+│   └── import.py                # 將學生 JSON 匯入資料庫
+└── logic/
+    ├── requirements.txt
+    ├── run.py                   # 主程式入口
+    ├── .env                     # 資料庫連線設定
+    └── app/
+        ├── config.py            # 連線池設定（讀取 .env）
+        ├── data/                # 靜態課程規則 JSON
+        │   ├── required.json    # 必修課程清單
+        │   ├── group.json       # 群修課程清單
+        │   └── core_general.json# 核心通識課程清單
+        └── audit/               # 各類別審核邏輯
+            ├── cs_rules/        # 必修 & 群修
+            └── general_rules/   # 通識、體育、自由選修
+```
+
+---
+
+## 環境需求
+
+- Python 3.12+
+- Docker & Docker Compose
+- （建議）virtualenv / venv
+
+---
+
+## 從零開始的完整步驟
+
+### 第 1 步：Clone 專案
+
+```bash
+git clone <repo-url>
+cd graduation-audit
+```
+
+---
+
+### 第 2 步：建立 Python 虛擬環境並安裝套件
+
+在**專案根目錄**執行：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+
+pip install -r logic/requirements.txt
+```
+
+---
+
+### 第 3 步：啟動 PostgreSQL 容器
+
+```bash
+sudo docker compose -f ./database/docker-compose.yml up -d
+```
+
+容器啟動時會自動執行 `database/schema.sql`，建立所有資料表。
+
+**確認容器正常運行：**
+
+```bash
+sudo docker ps
+```
+
+應可看到 `my-postgres` 容器處於 `Up` 狀態。
+
+**（選用）進入資料庫確認 schema 建立正確：**
+
+```bash
+docker exec -it my-postgres psql -U admin -d myapp
+```
+
+```sql
+\dt          -- 列出所有資料表
+\d students  -- 查看 students 欄位
+\q           -- 離開
+```
+
+---
+
+### 第 4 步：準備學生資料
+
+將全人系統匯出的 JSON 檔案放到 `data/` 目錄，檔名需符合 `exportStudentData*.json` 格式：
+
+```
+data/
+├── exportStudentData.json
+├── exportStudentData_h.json
+└── exportStudentData_j.json
+```
+
+---
+
+### 第 5 步：匯入資料庫
+
+在**專案根目錄**執行：
+
+```bash
+python3 database/import.py
+```
+
+此腳本會：
+1. 從 `logic/app/data/` 讀取靜態課程規則（必修、群修、通識），寫入 `required_course`、`cs_group` 等資料表
+2. 掃描 `data/` 目錄下所有 `exportStudentData*.json`，匯入學生資料與修課紀錄
+
+**（選用）匯入後驗證：**
+
+```bash
+docker exec -it my-postgres psql -U admin -d myapp
+```
+
+```sql
+-- 確認學生資料
+SELECT student_id, chinese_name, enrollment_year FROM students;
+
+-- 確認必修課程
+SELECT course_code, course_name FROM required_course;
+
+-- 確認某學生修課紀錄
+SELECT cr.course_code, ac.course_name, cr.score, cr.course_status
+FROM course_record cr
+JOIN all_course ac ON ac.course_code = cr.course_code
+WHERE cr.student_id = '112703046';
+```
+
+---
+
+### 第 6 步：執行畢業審核
+
+在 `logic/` 目錄下執行：
+
+```bash
+cd logic
+python3 run.py
+```
+
+> 若要審核不同學生，修改 `logic/run.py` 第 117 行的 `student_id`。
+
+**輸出範例：**
+
+```
+════════════════════════════════════════════════════
+  專業必修
+════════════════════════════════════════════════════
+  狀態        : ✓ 已完成
+  已通過      : 18 門
+
+════════════════════════════════════════════════════
+  畢業審核總結
+════════════════════════════════════════════════════
+  分類        已獲       需求   狀態
+  ──────────────────────────────────────────────────
+  專業必修     36.0  /   36.0   ✓
+  專業群修     15.0  /   15.0   ✓
+  通識         28.0  /   28.0   ✓
+  體育          4.0  /    4.0   ✓
+  自由選修     45.0  /   45.0   ✓
+  ──────────────────────────────────────────────────
+  總計        128.0  /  128.0   ✓
+
+  ✓ 符合畢業資格
+```
+
+---
+
+## 常見操作
+
+### 重置資料庫（清空所有資料重來）
+
+```bash
+# 停止並刪除容器與 volume
+sudo docker compose -f ./database/docker-compose.yml down -v
+
+# 重新啟動（會用 schema.sql 重新初始化）
+sudo docker compose -f ./database/docker-compose.yml up -d
+
+# 重新匯入資料
+python3 database/import.py
+```
+
+### 重新匯入單一 JSON 檔案
+
+```bash
+python3 database/import.py data/exportStudentData_h.json
+```
+
+---
+
+## 資料庫連線設定
+
+連線參數定義在 `logic/.env`：
+
+```
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME=myapp
+DB_USER=admin
+DB_PASSWORD=123456
+```
+
+與 `database/docker-compose.yml` 對應，若需修改請兩者同步更新。
 
 ---
 
@@ -11,90 +222,7 @@
 
 | 層級 | 技術 |
 |------|------|
-| 後端 | Python |
-| ORM | SQLAlchemy |
-| 資料庫 | PostgreSQL |
-| 容器化 | Docker |
-| 壓測 | k6 |
-
----
-
-## 資料來源
-
-全人系統匯出 JSON（`exportStudentData.json`）
-
----
-
-## 資料庫 Schema
-
-### 1. `students` — 學生基本資料
-
-| 欄位 | 型別 | 說明 |
-|------|------|------|
-| id | UUID / Integer (PK) | 系統內部唯一碼 |
-| student_number | VARCHAR (Unique) | 學號 |
-| chinese_name | VARCHAR | 中文姓名 |
-| register_major | VARCHAR | 主修系所 |
-| double_major | VARCHAR | 雙主修系所 |
-| minor | VARCHAR | 輔系 |
-| enrollment_year | Integer | 入學學年度（對應畢業門檻版本）|
-
-### 2. `academic_records` — 學期總結
-
-| 欄位 | 型別 | 說明 |
-|------|------|------|
-| id | UUID / Integer (PK) | 系統內部唯一碼 |
-| student_id | FK → students | 關聯學生 |
-| academic_year | Integer | 學年度（ex: 112）|
-| semester | Integer | 學期（1 或 2）|
-| average_score | Numeric(5,2) | 學期平均 |
-| total_credits | Integer | 實拿總學分 |
-| class_rank | VARCHAR | 班排 |
-
-### 3. `course_records` — 歷年修課紀錄
-
-| 欄位 | 型別 | 說明 |
-|------|------|------|
-| id | UUID / Integer (PK) | 系統內部唯一碼 |
-| academic_record_id | FK → academic_records | 關聯學期 |
-| course_code | VARCHAR | 課號（ex: 703016001）|
-| course_name | VARCHAR | 課程名稱 |
-| credit | Numeric(3,1) | 學分數 |
-| score | VARCHAR | 成績（字串以相容「成績未到」）|
-| course_type | VARCHAR | 必修 / 選修 / 群修 |
-| remark | VARCHAR | 備註（ex: 資訊通、校際選課）|
-
-### 4. `graduation_rules` — 系所畢業門檻規則
-
-| 欄位 | 型別 | 說明 |
-|------|------|------|
-| id | UUID / Integer (PK) | 系統內部唯一碼 |
-| department | VARCHAR | 適用系所 |
-| applicable_year | Integer | 適用入學學年度 |
-| total_required | Numeric(4,1) | 畢業總學分門檻 |
-| required_point | Numeric(4,1) | 必修學分門檻 |
-| group_point | Numeric(4,1) | 群修學分門檻 |
-| rule_details | JSONB | 特殊規定（擋修條件、特定通識要求等）|
-
-> 注意：`rule_details` 排除「資訊通識」計入群修的情況。
-
----
-
-## 畢業審查邏輯
-
-依下列類別分別計算已修與差缺學分：
-
-- **必修**
-- **通識**
-- **體育**
-- **群修**
-
-審查條件：
-- 只看 `register_major`，排除雙主修與輔系課程
-- 以 `enrollment_year` 對應正確版本的 `graduation_rules`
-
----
-
-## 未來擴充
-
-- 若某類別學分不足，自動推薦可修課程清單
+| 審核邏輯 | Python 3.12 |
+| 資料庫 | PostgreSQL 16 |
+| 容器化 | Docker Compose |
+| Python 套件 | psycopg2-binary、python-dotenv |

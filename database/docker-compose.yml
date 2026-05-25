@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: 123456
       POSTGRES_DB: myapp
     ports:
-      - "5433:5432"
+      - "5433:5432" # 若本機有自己下載的PostgreSQL，要改用5433:5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
