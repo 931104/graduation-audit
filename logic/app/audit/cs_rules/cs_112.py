@@ -97,8 +97,6 @@ def Group(student_id: str):
             best_idx = max(range(len(group_courses)), key=lambda i: group_courses[i][1])
             for idx, item in enumerate(group_courses):
                 if idx == best_idx:
-            for idx, item in enumerate(group_courses):
-                if idx == best_idx:
                     used_bcde.append(item)
                 else:
                     extra_bcde.append(item)

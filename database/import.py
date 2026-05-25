@@ -2,13 +2,17 @@ import json
 import os
 import psycopg2
 import sys
+from dotenv import load_dotenv
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(_ROOT, ".env"))
 
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5433,
-    "database": "myapp",
-    "user": "admin",
-    "password": "123456",
+    "host":     os.getenv("DB_HOST", "localhost"),
+    "port":     int(os.getenv("DB_PORT", "5433")),
+    "database": os.getenv("DB_NAME", "myapp"),
+    "user":     os.getenv("DB_USER", "admin"),
+    "password": os.getenv("DB_PASSWORD", "123456"),
 }
 
 SPECIAL_SCORES = {"停修", "通過", "成績未到或無成績", ""}
