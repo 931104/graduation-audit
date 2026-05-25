@@ -36,6 +36,7 @@ def Required(student_id: str):
     return len(missing) == 0, missing, passed_codes, passed_credits
 
 
+
 def Group(student_id: str):
     courses = fetch_course_records(student_id)
     group_data = fetch_group_names(YEAR)
@@ -52,9 +53,14 @@ def Group(student_id: str):
     for course in courses:
         score = course["score"]
         is_passed = (score is not None and float(score) >= PASS) or course["course_status"] == "通過"
+    for course in courses:
+        score = course["score"]
+        is_passed = (score is not None and float(score) >= PASS) or course["course_status"] == "通過"
         if not is_passed:
             continue
         for name, group in zip(group_names, Group_list):
+            if course["course_name"] in group:
+                passed_in_group[name].append((course["course_name"], float(course["credit"])))
             if course["course_name"] in group:
                 passed_in_group[name].append((course["course_name"], float(course["credit"])))
                 break
@@ -78,6 +84,7 @@ def Group(student_id: str):
     selected_groups = {
         name
         for name, _ in sorted(bcde_best.items(), key=lambda item: item[1][1], reverse=True)[:BCDE_GROUPS_NEEDED]
+        for name, _ in sorted(bcde_best.items(), key=lambda item: item[1][1], reverse=True)[:BCDE_GROUPS_NEEDED]
     }
 
     used_bcde: list[tuple[str, float]] = []
@@ -90,12 +97,15 @@ def Group(student_id: str):
             best_idx = max(range(len(group_courses)), key=lambda i: group_courses[i][1])
             for idx, item in enumerate(group_courses):
                 if idx == best_idx:
+            for idx, item in enumerate(group_courses):
+                if idx == best_idx:
                     used_bcde.append(item)
                 else:
                     extra_bcde.append(item)
         else:
             extra_bcde.extend(group_courses)
 
+    bcde_credits = sum(credit for _, credit in used_bcde)
     bcde_credits = sum(credit for _, credit in used_bcde)
     used_credits = group_a_credits + bcde_credits
 
@@ -112,11 +122,13 @@ def Group(student_id: str):
         "domain_count": len(selected_groups),
         "domain_ok": len(selected_groups) >= BCDE_GROUPS_NEEDED,
         "total_credits": sum(sum(credit for _, credit in passed_in_group[name]) for name in group_names),
+        "total_credits": sum(sum(credit for _, credit in passed_in_group[name]) for name in group_names),
         "used_credits": used_credits,
         "credits_ok": used_credits >= GROUP_TOTAL_LIMIT,
         "used_courses": [name for name, _ in used_a + used_bcde],
         "extra_courses": [name for name, _ in extra_a + extra_bcde],
     }
+
 
 
 def main():
