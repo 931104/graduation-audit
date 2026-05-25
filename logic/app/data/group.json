@@ -1,0 +1,41 @@
+{
+  "year": "112",
+  "group_course": {
+    "群A": [
+      {"course_name": "資訊專題（A）", "credit": "3.0"},
+      {"course_name": "資訊專題（B）", "credit": "3.0"},
+      {"course_name": "資訊專題（C）", "credit": "3.0"},
+      {"course_name": "資訊專題（D）", "credit": "3.0"}
+    ],
+    "群B": [
+      {"course_name": "人工智慧概論", "credit": "3.0"},
+      {"course_name": "資料庫系統", "credit": "3.0"},
+      {"course_name": "資料科學", "credit": "3.0"},
+      {"course_name": "機器學習概論", "credit": "3.0"},
+      {"course_name": "電腦視覺", "credit": "3.0"}
+    ],
+    "群C": [
+      {"course_name": "人機互動", "credit": "3.0"},
+      {"course_name": "電腦圖學", "credit": "3.0"},
+      {"course_name": "軟體開發環境應用設計", "credit": "3.0"},
+      {"course_name": "虛擬實境與觸覺回饋互動", "credit": "3.0"},
+      {"course_name": "視訊壓縮", "credit": "3.0"},
+      {"course_name": "資訊視覺化", "credit": "3.0"}
+    ],
+    "群D": [
+      {"course_name": "資訊安全", "credit": "3.0"},
+      {"course_name": "資訊理論", "credit": "3.0"},
+      {"course_name": "現代密碼學", "credit": "3.0"},
+      {"course_name": "數位簽章", "credit": "3.0"},
+      {"course_name": "工業物聯網與營運安全", "credit": "3.0"}
+    ],
+    "群E": [
+      {"course_name": "計算機網路", "credit": "3.0"},
+      {"course_name": "行動通訊網路", "credit": "3.0"},
+      {"course_name": "網路與通訊概論", "credit": "3.0"},
+      {"course_name": "分散式系統", "credit": "3.0"},
+      {"course_name": "軟體工程概論", "credit": "3.0"},
+      {"course_name": "等候理論", "credit": "3.0"}
+    ]
+  }
+}

@@ -20,37 +20,6 @@ IGNORED_STATUSES = {"停修", "成績未到或無成績"}
 ENGLISH_COURSE_NAMES = {"大學英文（一）", "大學英文（二）"}
 CHINESE_COURSE_KEYWORDS = ("國文－", "進階國文－")
 ENGLISH_COURSE_CODE_PREFIX = "599"
-CORE_COURSES = {
-    "人文通": {
-        "藝術與當代社會",
-        "西方文學經典與人文思維",
-        "生命價值與哲學思惟",
-        "生命探索與宗教文化",
-        "文明發展與歷史思惟",
-        "語言的人文與科學",
-        "近代臺灣歷史與人物",
-    },
-    "社會通": {
-        "臺灣政治",
-        "法學素養",
-        "認識智慧財產權",
-        "生活中的經濟學",
-        "媒體素養",
-        "社會學動動腦",
-        "教育探索與自我學習",
-        "環視全球-挑戰國際視野",
-        "中國大陸概論",
-    },
-    "自然通": {
-        "數學、邏輯與人生",
-        "生活中的律動",
-        "物理學史與人類文明",
-        "生活中的生命科學",
-        "心理與生活",
-        "大腦與我",
-        "科技與人文社會",
-    },
-}
 
 
 def _is_passed(score, course_status: str | None) -> bool:
@@ -61,25 +30,8 @@ def _is_passed(score, course_status: str | None) -> bool:
     return score is not None and float(score) >= PASSING_SCORE
 
 
-def _parse_domains(remark: str | None) -> tuple[str, ...]:
-    if not remark:
-        return ()
-    return tuple(
-        domain
-        for domain in (part.strip() for part in remark.split("、"))
-        if domain in DOMAIN_ORDER
-    )
-
-
 def _format_progress(value: float, target: float) -> str:
     return f"{value:.1f}/{target:.1f}"
-
-
-def _find_core_domain(course_name: str) -> str | None:
-    for domain, course_names in CORE_COURSES.items():
-        if course_name in course_names:
-            return domain
-    return None
 
 
 def _is_english_course(course_name: str) -> bool:
@@ -98,6 +50,40 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            # 通識領域課程：is_general=true，從 DB 取得 domains 與 is_core
+            cur.execute(
+                """
+                WITH latest AS (
+                    SELECT DISTINCT ON (course_code)
+                        course_code, score, course_status
+                    FROM course_record
+                    WHERE student_id = %s AND is_general = true
+                    ORDER BY course_code, academic_year DESC, academic_semester DESC
+                )
+                SELECT
+                    ac.course_name,
+                    ac.course_code,
+                    ac.credit,
+                    l.score,
+                    l.course_status,
+                    COALESCE(gc.is_core, false) AS is_core,
+                    array_remove(
+                        array_agg(gcat.category_name ORDER BY gcat.category_name), NULL
+                    ) AS domains
+                FROM latest l
+                JOIN all_course ac ON ac.course_code = l.course_code
+                LEFT JOIN general_course gc ON gc.course_code = l.course_code
+                LEFT JOIN general_course_category gcc ON gcc.course_code = l.course_code
+                LEFT JOIN general_category gcat ON gcat.category_code = gcc.category_code
+                GROUP BY ac.course_name, ac.course_code, ac.credit,
+                         l.score, l.course_status, gc.is_core
+                ORDER BY ac.course_code
+                """,
+                (student_id,),
+            )
+            domain_rows = cur.fetchall()
+
+            # 英文／國文課程：以課名或課號辨識
             cur.execute(
                 """
                 WITH latest AS (
@@ -105,33 +91,22 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
                         course_code, score, course_status
                     FROM course_record
                     WHERE student_id = %s
-                    ORDER BY course_code, academic_year_semester DESC
+                    ORDER BY course_code, academic_year DESC, academic_semester DESC
                 )
                 SELECT
-                    c.course_name,
-                    c.course_code,
-                    c.credit,
-                    c.remark,
-                    c.special_attribute,
+                    ac.course_name,
+                    ac.course_code,
+                    ac.credit,
                     l.score,
                     l.course_status
                 FROM latest l
-                JOIN course c ON c.course_code = l.course_code
-                WHERE (
-                    c.course_name IN (%s, %s) OR
-                    c.course_code LIKE %s OR
-                    c.course_name LIKE %s OR
-                    c.course_name LIKE %s OR
-                    (
-                        c.remark IS NOT NULL
-                        AND (
-                            c.remark LIKE %s OR
-                            c.remark LIKE %s OR
-                            c.remark LIKE %s
-                        )
-                    )
-                )
-                ORDER BY c.course_code
+                JOIN all_course ac ON ac.course_code = l.course_code
+                WHERE
+                    ac.course_name IN (%s, %s) OR
+                    ac.course_code LIKE %s OR
+                    ac.course_name LIKE %s OR
+                    ac.course_name LIKE %s
+                ORDER BY ac.course_code
                 """,
                 (
                     student_id,
@@ -140,39 +115,37 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
                     "599%",
                     "%國文－%",
                     "%進階國文－%",
-                    "%人文通%",
-                    "%社會通%",
-                    "%自然通%",
                 ),
             )
-            rows = cur.fetchall()
+            lang_rows = cur.fetchall()
     finally:
         put_conn(conn)
 
     courses = []
-    for row in rows:
-        course_name, course_code, credit, remark, special_attribute, score, course_status = row
-        domains = _parse_domains(remark)
-        if (
-            not domains
-            and not _is_chinese_course(course_name)
-            and not _is_english_course(course_name)
-            and not _is_english_elective_course(course_code)
-        ):
-            continue
-        courses.append(
-            {
-                "course_name": course_name,
-                "course_code": course_code,
-                "credit": float(credit),
-                "remark": remark,
-                "special_attribute": special_attribute,
-                "score": None if score is None else float(score),
-                "course_status": course_status,
-                "domains": domains,
-                "passed": _is_passed(score, course_status),
-            }
-        )
+    for course_name, course_code, credit, score, course_status, is_core, domains in domain_rows:
+        courses.append({
+            "course_name":   course_name,
+            "course_code":   course_code,
+            "credit":        float(credit),
+            "score":         None if score is None else float(score),
+            "course_status": course_status,
+            "is_core":       is_core,
+            "domains":       tuple(domains) if domains else (),
+            "passed":        _is_passed(score, course_status),
+        })
+
+    for course_name, course_code, credit, score, course_status in lang_rows:
+        courses.append({
+            "course_name":   course_name,
+            "course_code":   course_code,
+            "credit":        float(credit),
+            "score":         None if score is None else float(score),
+            "course_status": course_status,
+            "is_core":       False,
+            "domains":       (),
+            "passed":        _is_passed(score, course_status),
+        })
+
     return courses
 
 
@@ -212,7 +185,7 @@ def _build_assignment(courses: list[dict]) -> tuple[dict[str, float], list[dict]
             next_credits[idx] += credit_units
 
             next_core_counts = list(core_counts)
-            if _find_core_domain(course["course_name"]) == domain:
+            if course["is_core"] and domain in course["domains"]:
                 next_core_counts[idx] += 1
 
             score, plan = search(index + 1, tuple(next_credits), tuple(next_core_counts))
@@ -343,10 +316,9 @@ def General(student_id: str) -> dict:
     for course in assigned_courses:
         if not course["passed"]:
             continue
-        core_domain = _find_core_domain(course["course_name"])
-        if core_domain is None:
+        if not course["is_core"]:
             continue
-        core_courses.append({**course, "core_domain": core_domain})
+        core_courses.append({**course, "core_domain": course["domains"][0]})
 
     core_domains = sorted({course["core_domain"] for course in core_courses})
     core_domain_shortages = {
