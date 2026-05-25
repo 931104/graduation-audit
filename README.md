@@ -56,9 +56,22 @@ cd graduation-audit
 在**專案根目錄**執行：
 
 ```bash
+# macOS/Linux
 python3 -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 
+# Windows (Git Bash)
+python -m venv .venv
+source .venv/Scripts/activate
+
+# Windows (PowerShell/CMD)
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+安裝套件：
+
+```bash
 pip install -r logic/requirements.txt
 ```
 
@@ -112,7 +125,8 @@ data/
 在**專案根目錄**執行：
 
 ```bash
-python3 database/import.py
+python database/import.py      # Windows (Git Bash / PowerShell)
+python3 database/import.py     # macOS/Linux
 ```
 
 此腳本會：
@@ -147,7 +161,8 @@ WHERE cr.student_id = '112703046';
 
 ```bash
 cd logic
-python3 run.py
+python run.py      # Windows (Git Bash / PowerShell)
+python3 run.py     # macOS/Linux
 ```
 
 > 若要審核不同學生，修改 `logic/run.py` 第 117 行的 `student_id`。
@@ -191,13 +206,15 @@ sudo docker compose -f ./database/docker-compose.yml down -v
 sudo docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
 
 # 重新匯入資料
-python3 database/import.py
+python database/import.py      # Windows
+python3 database/import.py     # macOS/Linux
 ```
 
 ### 重新匯入單一 JSON 檔案
 
 ```bash
-python3 database/import.py data/exportStudentData_h.json
+python database/import.py data/exportStudentData_h.json      # Windows
+python3 database/import.py data/exportStudentData_h.json     # macOS/Linux
 ```
 
 ---
