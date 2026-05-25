@@ -67,7 +67,7 @@ pip install -r logic/requirements.txt
 ### 第 3 步：啟動 PostgreSQL 容器
 
 ```bash
-sudo docker compose -f ./database/docker-compose.yml up -d
+sudo docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
 ```
 
 容器啟動時會自動執行 `database/schema.sql`，建立所有資料表。
@@ -188,7 +188,7 @@ python3 run.py
 sudo docker compose -f ./database/docker-compose.yml down -v
 
 # 重新啟動（會用 schema.sql 重新初始化）
-sudo docker compose -f ./database/docker-compose.yml up -d
+sudo docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
 
 # 重新匯入資料
 python3 database/import.py
