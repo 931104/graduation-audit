@@ -13,8 +13,12 @@ def fetch_student(student_id: str):
         return {col.name: getattr(student, col.name) for col in Student.__table__.columns}
 
 
-def fetch_course_records(student_id: str):
-    """Each course_code returns only the latest attempt for the student."""
+def fetch_course_records(student_id: str, latest_only: bool = True) -> list[dict]:
+    """Fetch course records for a student.
+
+    latest_only=True  → one row per course_code (latest attempt), used by audit logic.
+    latest_only=False → all attempts across all semesters, used by GPA calculation.
+    """
     stmt = (
         select(
             CourseRecord.course_code,
@@ -32,8 +36,10 @@ def fetch_course_records(student_id: str):
             CourseRecord.academic_year.desc(),
             CourseRecord.academic_semester.desc(),
         )
-        .distinct(CourseRecord.course_code)
     )
+    if latest_only:
+        stmt = stmt.distinct(CourseRecord.course_code)
+
     with get_session() as session:
         rows = session.execute(stmt).all()
 
@@ -42,9 +48,11 @@ def fetch_course_records(student_id: str):
             "course_code": row.course_code,
             "score": row.score,
             "course_status": row.course_status,
+            "academic_year": row.academic_year,
+            "academic_semester": row.academic_semester,
             "academic_year_semester": f"{row.academic_year}{row.academic_semester}",
             "course_name": row.course_name,
-            "credit": row.credit,
+            "credit": float(row.credit),
         }
         for row in rows
     ]
