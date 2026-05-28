@@ -1,78 +1,77 @@
 # 封裝所有對於 DB 的查詢，但不具有判斷邏輯
-from psycopg2.extras import RealDictCursor
+from sqlalchemy import select
 
-from app.config import get_conn, put_conn
+from app.config import get_session
+from app.models import AllCourse, CourseRecord, CsGroup, RequiredCourse, Student
 
 
 def fetch_student(student_id: str):
-    conn = get_conn()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
-            return cur.fetchone()
-    finally:
-        put_conn(conn)
+    with get_session() as session:
+        student = session.get(Student, student_id)
+        if student is None:
+            return None
+        return {col.name: getattr(student, col.name) for col in Student.__table__.columns}
 
 
 def fetch_course_records(student_id: str):
     """Each course_code returns only the latest attempt for the student."""
-    conn = get_conn()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT DISTINCT ON (cr.course_code)
-                    cr.course_code,
-                    cr.score,
-                    cr.course_status,
-                    cr.academic_year || cr.academic_semester AS academic_year_semester,
-                    c.course_name,
-                    c.credit
-                FROM course_record cr
-                JOIN all_course c ON cr.course_code = c.course_code
-                WHERE cr.student_id = %s
-                ORDER BY cr.course_code, cr.academic_year DESC, cr.academic_semester DESC
-                """,
-                (student_id,),
-            )
-            return cur.fetchall()
-    finally:
-        put_conn(conn)
+    stmt = (
+        select(
+            CourseRecord.course_code,
+            CourseRecord.score,
+            CourseRecord.course_status,
+            CourseRecord.academic_year,
+            CourseRecord.academic_semester,
+            AllCourse.course_name,
+            AllCourse.credit,
+        )
+        .join(AllCourse, CourseRecord.course_code == AllCourse.course_code)
+        .where(CourseRecord.student_id == student_id)
+        .order_by(
+            CourseRecord.course_code,
+            CourseRecord.academic_year.desc(),
+            CourseRecord.academic_semester.desc(),
+        )
+        .distinct(CourseRecord.course_code)
+    )
+    with get_session() as session:
+        rows = session.execute(stmt).all()
+
+    return [
+        {
+            "course_code": row.course_code,
+            "score": row.score,
+            "course_status": row.course_status,
+            "academic_year_semester": f"{row.academic_year}{row.academic_semester}",
+            "course_name": row.course_name,
+            "credit": row.credit,
+        }
+        for row in rows
+    ]
 
 
 def fetch_required_courses(dept: str, year: str) -> list[tuple[str, str]]:
     """Returns list of (course_code, course_name) for each required course entry."""
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT course_code, course_name FROM required_course
-                WHERE take_in_dept = %s AND take_in_year = %s
-                ORDER BY required_uid
-                """,
-                (dept, year),
-            )
-            return cur.fetchall()
-    finally:
-        put_conn(conn)
+    stmt = (
+        select(RequiredCourse.course_code, RequiredCourse.course_name)
+        .where(
+            RequiredCourse.take_in_dept == dept,
+            RequiredCourse.take_in_year == year,
+        )
+        .order_by(RequiredCourse.required_uid)
+    )
+    with get_session() as session:
+        return [(code, name) for code, name in session.execute(stmt).all()]
 
 
 def fetch_group_names(year: str) -> dict[str, list[str]]:
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT course_class, course_name FROM cs_group
-                WHERE take_in_year = %s
-                ORDER BY course_class, group_uid
-                """,
-                (year,),
-            )
-            result: dict[str, list[str]] = {}
-            for course_class, course_name in cur.fetchall():
-                result.setdefault(course_class, []).append(course_name)
-            return result
-    finally:
-        put_conn(conn)
+    stmt = (
+        select(CsGroup.course_class, CsGroup.course_name)
+        .where(CsGroup.take_in_year == year)
+        .order_by(CsGroup.course_class, CsGroup.group_uid)
+    )
+    with get_session() as session:
+        result: dict[str, list[str]] = {}
+        for course_class, course_name in session.execute(stmt).all():
+            result.setdefault(course_class, []).append(course_name)
+        return result
