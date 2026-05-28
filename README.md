@@ -17,7 +17,8 @@ graduation-audit/
 │   └── import.py                # 將學生 JSON 匯入資料庫
 └── logic/
     ├── requirements.txt
-    ├── run.py                   # 主程式入口
+    ├── run.py                   # 畢業審核主程式
+    ├── gpa.py                   # GPA 計算主程式
     ├── .env                     # 資料庫連線設定
     └── app/
         ├── config.py            # 連線池設定（讀取 .env）
@@ -155,7 +156,21 @@ WHERE cr.student_id = '112703046';
 
 ---
 
-### 第 6 步：執行畢業審核
+### 第 6 步：執行 GPA 計算
+
+在 `logic/` 目錄下執行：
+
+```bash
+cd logic
+python gpa.py      # Windows (Git Bash / PowerShell)
+python3 gpa.py     # macOS/Linux
+```
+
+> 若要查詢不同學生，修改 `logic/gpa.py` 最底部 `main()` 裡的 `student_id`。
+
+---
+
+### 第 7 步：執行畢業審核
 
 在 `logic/` 目錄下執行：
 
@@ -165,7 +180,7 @@ python run.py      # Windows (Git Bash / PowerShell)
 python3 run.py     # macOS/Linux
 ```
 
-> 若要審核不同學生，修改 `logic/run.py` 第 117 行的 `student_id`。
+> 若要審核不同學生，修改 `logic/run.py` 最底部 `main()` 裡的 `student_id`。
 
 **輸出範例：**
 
