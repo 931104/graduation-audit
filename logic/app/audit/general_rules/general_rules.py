@@ -3,7 +3,17 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from app.config import get_conn, put_conn
+from sqlalchemy import False_, func, or_, select
+from sqlalchemy.dialects.postgresql import aggregate_order_by
+
+from app.config import get_session
+from app.models import (
+    AllCourse,
+    CourseRecord,
+    GeneralCategory,
+    GeneralCourse,
+    GeneralCourseCategory,
+)
 
 DOMAIN_ORDER = ("人文通", "社會通", "自然通")
 DOMAIN_MIN_CREDITS = 3.0
@@ -47,103 +57,133 @@ def _is_chinese_course(course_name: str) -> bool:
 
 
 def _fetch_general_courses(student_id: str) -> list[dict]:
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            # 通識領域課程：is_general=true，從 DB 取得 domains 與 is_core
-            cur.execute(
-                """
-                WITH latest AS (
-                    SELECT DISTINCT ON (course_code)
-                        course_code, score, course_status
-                    FROM course_record
-                    WHERE student_id = %s AND is_general = true
-                    ORDER BY course_code, academic_year DESC, academic_semester DESC
-                )
-                SELECT
-                    ac.course_name,
-                    ac.course_code,
-                    ac.credit,
-                    l.score,
-                    l.course_status,
-                    COALESCE(gc.is_core, false) AS is_core,
-                    array_remove(
-                        array_agg(gcat.category_name ORDER BY gcat.category_name), NULL
-                    ) AS domains
-                FROM latest l
-                JOIN all_course ac ON ac.course_code = l.course_code
-                LEFT JOIN general_course gc ON gc.course_code = l.course_code
-                LEFT JOIN general_course_category gcc ON gcc.course_code = l.course_code
-                LEFT JOIN general_category gcat ON gcat.category_code = gcc.category_code
-                GROUP BY ac.course_name, ac.course_code, ac.credit,
-                         l.score, l.course_status, gc.is_core
-                ORDER BY ac.course_code
-                """,
-                (student_id,),
-            )
-            domain_rows = cur.fetchall()
+    # CTE: 該學生每門課的最新一次嘗試（含 is_general 過濾，給通識領域查詢用）
+    latest_general = (
+        select(
+            CourseRecord.course_code,
+            CourseRecord.score,
+            CourseRecord.course_status,
+        )
+        .where(
+            CourseRecord.student_id == student_id,
+            CourseRecord.is_general.is_(True),
+        )
+        .order_by(
+            CourseRecord.course_code,
+            CourseRecord.academic_year.desc(),
+            CourseRecord.academic_semester.desc(),
+        )
+        .distinct(CourseRecord.course_code)
+        .cte("latest_general")
+    )
 
-            # 英文／國文課程：以課名或課號辨識
-            cur.execute(
-                """
-                WITH latest AS (
-                    SELECT DISTINCT ON (course_code)
-                        course_code, score, course_status
-                    FROM course_record
-                    WHERE student_id = %s
-                    ORDER BY course_code, academic_year DESC, academic_semester DESC
-                )
-                SELECT
-                    ac.course_name,
-                    ac.course_code,
-                    ac.credit,
-                    l.score,
-                    l.course_status
-                FROM latest l
-                JOIN all_course ac ON ac.course_code = l.course_code
-                WHERE
-                    ac.course_name IN (%s, %s) OR
-                    ac.course_code LIKE %s OR
-                    ac.course_name LIKE %s OR
-                    ac.course_name LIKE %s
-                ORDER BY ac.course_code
-                """,
-                (
-                    student_id,
-                    "大學英文（一）",
-                    "大學英文（二）",
-                    "599%",
-                    "%國文－%",
-                    "%進階國文－%",
+    # 通識領域課程：取出 is_core 與多領域 array
+    domain_stmt = (
+        select(
+            AllCourse.course_name,
+            AllCourse.course_code,
+            AllCourse.credit,
+            latest_general.c.score,
+            latest_general.c.course_status,
+            func.coalesce(GeneralCourse.is_core, False_()).label("is_core"),
+            func.array_remove(
+                func.array_agg(
+                    aggregate_order_by(
+                        GeneralCategory.category_name,
+                        GeneralCategory.category_name,
+                    )
                 ),
+                None,
+            ).label("domains"),
+        )
+        .select_from(latest_general)
+        .join(AllCourse, AllCourse.course_code == latest_general.c.course_code)
+        .outerjoin(GeneralCourse, GeneralCourse.course_code == latest_general.c.course_code)
+        .outerjoin(
+            GeneralCourseCategory,
+            GeneralCourseCategory.course_code == latest_general.c.course_code,
+        )
+        .outerjoin(
+            GeneralCategory,
+            GeneralCategory.category_code == GeneralCourseCategory.category_code,
+        )
+        .group_by(
+            AllCourse.course_name,
+            AllCourse.course_code,
+            AllCourse.credit,
+            latest_general.c.score,
+            latest_general.c.course_status,
+            GeneralCourse.is_core,
+        )
+        .order_by(AllCourse.course_code)
+    )
+
+    # CTE: 該學生每門課的最新一次嘗試（不過濾 is_general，給英／國文查詢用）
+    latest_all = (
+        select(
+            CourseRecord.course_code,
+            CourseRecord.score,
+            CourseRecord.course_status,
+        )
+        .where(CourseRecord.student_id == student_id)
+        .order_by(
+            CourseRecord.course_code,
+            CourseRecord.academic_year.desc(),
+            CourseRecord.academic_semester.desc(),
+        )
+        .distinct(CourseRecord.course_code)
+        .cte("latest_all")
+    )
+
+    lang_stmt = (
+        select(
+            AllCourse.course_name,
+            AllCourse.course_code,
+            AllCourse.credit,
+            latest_all.c.score,
+            latest_all.c.course_status,
+        )
+        .select_from(latest_all)
+        .join(AllCourse, AllCourse.course_code == latest_all.c.course_code)
+        .where(
+            or_(
+                AllCourse.course_name.in_(list(ENGLISH_COURSE_NAMES)),
+                AllCourse.course_code.like(f"{ENGLISH_COURSE_CODE_PREFIX}%"),
+                AllCourse.course_name.like("%國文－%"),
+                AllCourse.course_name.like("%進階國文－%"),
             )
-            lang_rows = cur.fetchall()
-    finally:
-        put_conn(conn)
+        )
+        .order_by(AllCourse.course_code)
+    )
+
+    with get_session() as session:
+        domain_rows = session.execute(domain_stmt).all()
+        lang_rows = session.execute(lang_stmt).all()
 
     courses = []
-    for course_name, course_code, credit, score, course_status, is_core, domains in domain_rows:
+    for row in domain_rows:
+        domains = row.domains or ()
         courses.append({
-            "course_name":   course_name,
-            "course_code":   course_code,
-            "credit":        float(credit),
-            "score":         None if score is None else float(score),
-            "course_status": course_status,
-            "is_core":       is_core,
-            "domains":       tuple(domains) if domains else (),
-            "passed":        _is_passed(score, course_status),
+            "course_name":   row.course_name,
+            "course_code":   row.course_code,
+            "credit":        float(row.credit),
+            "score":         None if row.score is None else float(row.score),
+            "course_status": row.course_status,
+            "is_core":       row.is_core,
+            "domains":       tuple(domains),
+            "passed":        _is_passed(row.score, row.course_status),
         })
 
-    for course_name, course_code, credit, score, course_status in lang_rows:
+    for row in lang_rows:
         courses.append({
-            "course_name":   course_name,
-            "course_code":   course_code,
-            "credit":        float(credit),
-            "score":         None if score is None else float(score),
-            "course_status": course_status,
+            "course_name":   row.course_name,
+            "course_code":   row.course_code,
+            "credit":        float(row.credit),
+            "score":         None if row.score is None else float(row.score),
+            "course_status": row.course_status,
             "is_core":       False,
             "domains":       (),
-            "passed":        _is_passed(score, course_status),
+            "passed":        _is_passed(row.score, row.course_status),
         })
 
     return courses

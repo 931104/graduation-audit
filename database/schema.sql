@@ -141,3 +141,26 @@ from general_course gc
 left join general_course_category m on m.course_code = gc.course_code
 group by gc.course_code, gc.course_name, gc.is_core;
 
+
+-- =========================================================
+-- Indexes（審核 query 熱路徑）
+-- =========================================================
+
+-- course_record 是查詢熱點，每位學生審核都掃這張表
+create index idx_course_record_student on course_record(student_id);
+
+-- 通識查詢專用部分索引，比全表 student_id 索引更省
+create index idx_course_record_student_general
+    on course_record(student_id) where is_general;
+
+-- required_course / cs_group：以 dept+year / year 過濾
+create index idx_required_dept_year
+    on required_course(take_in_dept, take_in_year);
+
+create index idx_cs_group_year on cs_group(take_in_year);
+
+-- 預留：未來支援多屆別、多系所
+create index idx_students_enrollment_year on students(enrollment_year);
+create index idx_graduation_rule_dept_year
+    on graduation_rule(department, applicable_year);
+

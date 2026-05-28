@@ -1,24 +1,29 @@
-from psycopg2 import pool
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 load_dotenv(os.path.join(_ROOT, ".env"))
 
-_pool = pool.SimpleConnectionPool(
-    minconn=1,
-    maxconn=10,
-    host=os.getenv("DB_HOST", "localhost"),
-    port=int(os.getenv("DB_PORT", "5433")),
-    database=os.getenv("DB_NAME", "myapp"),
-    user=os.getenv("DB_USER", "admin"),
-    password=os.getenv("DB_PASSWORD", "123456"),
+DB_URL = (
+    f"postgresql+psycopg2://"
+    f"{os.getenv('DB_USER', 'admin')}:{os.getenv('DB_PASSWORD', '123456')}"
+    f"@{os.getenv('DB_HOST', 'localhost')}:{int(os.getenv('DB_PORT', '5433'))}"
+    f"/{os.getenv('DB_NAME', 'myapp')}"
 )
 
+engine = create_engine(
+    DB_URL,
+    pool_size=10,
+    max_overflow=0,
+    pool_pre_ping=True,
+    future=True,
+)
 
-def get_conn():
-    return _pool.getconn()
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
-def put_conn(conn):
-    _pool.putconn(conn)
+def get_session():
+    return SessionLocal()
