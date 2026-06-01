@@ -81,7 +81,7 @@ pip install -r logic/requirements.txt
 ### 第 3 步：啟動 PostgreSQL 容器
 
 ```bash
-sudo docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
+docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
 ```
 
 容器啟動時會自動執行 `database/schema.sql`，建立所有資料表。
@@ -89,10 +89,19 @@ sudo docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
 **確認容器正常運行：**
 
 ```bash
-sudo docker ps
+docker ps
 ```
 
 應可看到 `my-postgres` 容器處於 `Up` 狀態。
+
+> **Windows 注意**：若出現 `Ports are not available` 錯誤，代表該 port 被 Hyper-V 保留。
+> 執行以下指令查看保留範圍，再換一個不在範圍內的 port（如 `5410`）：
+>
+> ```powershell
+> netsh interface ipv4 show excludedportrange protocol=tcp
+> ```
+>
+> 確認可用後，修改根目錄 `.env` 的 `DB_PORT`，再重新啟動容器。
 
 **（選用）進入資料庫確認 schema 建立正確：**
 
@@ -215,10 +224,10 @@ python3 run.py     # macOS/Linux
 
 ```bash
 # 停止並刪除容器與 volume
-sudo docker compose -f ./database/docker-compose.yml down -v
+docker compose -f ./database/docker-compose.yml down -v
 
 # 重新啟動（會用 schema.sql 重新初始化）
-sudo docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
+docker compose -f ./database/docker-compose.yml --env-file ./.env up -d
 
 # 重新匯入資料
 python database/import.py      # Windows
@@ -240,8 +249,8 @@ python3 database/import.py data/exportStudentData_h.json     # macOS/Linux
 
 ```
 # .env（根目錄）
-DB_HOST=localhost
-DB_PORT=5433
+DB_HOST=127.0.0.1
+DB_PORT=5410
 DB_NAME=myapp
 DB_USER=admin
 DB_PASSWORD=123456
@@ -251,13 +260,13 @@ DB_PASSWORD=123456
 
 | 檔案 | 讀取方式 |
 |------|---------|
-| `database/docker-compose.yml` | Docker Compose 自動讀取執行目錄的 `.env`，以 `${DB_*}` 代入 |
+| `database/docker-compose.yml` | `--env-file ./.env` 傳入，以 `${DB_*}` 代入 |
 | `database/import.py` | python-dotenv，路徑由 `__file__` 計算至根目錄 |
 | `logic/app/config.py` | python-dotenv，路徑由 `__file__` 計算至根目錄 |
 
 > **port 說明**：`docker-compose.yml` 的 `${DB_PORT}:5432` 是 `host:container`。
-> 容器內部監聽 `5432`，外部連線（import.py / config.py）使用 `DB_PORT=5433`。
-> 若本機已有 PostgreSQL 佔用 5432，此設定可避免衝突。
+> 容器內部監聽 `5432`，外部連線（import.py / config.py）使用 `DB_PORT`。
+> `DB_HOST` 建議用 `127.0.0.1` 而非 `localhost`，避免 Windows 走 IPv6 連到錯誤的服務。
 
 ---
 
