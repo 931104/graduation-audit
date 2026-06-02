@@ -8,19 +8,11 @@ from app.db.queries import fetch_course_records, fetch_student
 
 W = 52
 
-# 學校成績換算表
-_SCHOOL_GPA_TABLE = [
-    (90, 100, 4.3),
-    (85, 89, 4.0),
-    (80, 84, 3.7),
-    (77, 79, 3.3),
-    (73, 76, 3.0),
-    (70, 72, 2.7),
-    (67, 69, 2.3),
-    (63, 66, 2.0),
-    (60, 62, 1.7),
-    (50, 59, 1.0),
-    (0, 49, 0.0),
+# 學校成績換算表（閾值由高到低，score >= threshold 即取對應 GPA）
+_SCHOOL_GPA_THRESHOLDS = [
+    (90, 4.3), (85, 4.0), (80, 3.7), (77, 3.3),
+    (73, 3.0), (70, 2.7), (67, 2.3), (63, 2.0),
+    (60, 1.7), (50, 1.0), (0, 0.0),
 ]
 
 # 標準 4.0 制換算表（閾值由高到低）
@@ -28,8 +20,8 @@ _STD_GPA_THRESHOLDS = [(80, 4), (70, 3), (60, 2), (50, 1), (0, 0)]
 
 
 def _to_school_gpa(score: float) -> float:
-    for lo, hi, gpa in _SCHOOL_GPA_TABLE:
-        if lo <= score <= hi:
+    for threshold, gpa in _SCHOOL_GPA_THRESHOLDS:
+        if score >= threshold:
             return gpa
     return 0.0
 
