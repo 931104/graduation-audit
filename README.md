@@ -223,3 +223,9 @@ SELECT student_id, chinese_name FROM students;
 | `logic/app/config.py` | python-dotenv，路徑由 `__file__` 計算至根目錄 |
 
 後端容器內部透過 Docker network 直連 `postgres:5432`，不走 host port，`DB_PORT` 僅供本機開發使用。
+
+---
+
+## 網站測試連結
+
+傳送門：[點此前往 Graduation Audit](https://graduation-audit.vercel.app/)
