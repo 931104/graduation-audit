@@ -1,7 +1,18 @@
+# 個人成績資料，不上傳
 /data
+database/exportStudentData.json
+
+# 環境設定
+.env
+
+# Python
 .venv/
 __pycache__/
 *.pyc
-# 個人成績資料，不上傳
-database/exportStudentData.json
-.env
+
+# Frontend build cache
+frontend/.vite/
+frontend/dist/
+
+# Docker
+logic/__pycache__/
