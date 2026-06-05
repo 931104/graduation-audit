@@ -1,5 +1,166 @@
 @import "tailwindcss";
 
-body {
-  background: #f8fafc;
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: #f1f5f9;
+    color: #1e293b;
+    font-family: 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-weight: 700;
+    line-height: 1.2;
+  }
+}
+
+@layer components {
+  .card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+  }
+
+  .badge-pass {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  .badge-fail {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    text-align: left;
+    background: transparent;
+    color: #94a3b8;
+  }
+
+  .nav-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+  }
+
+  .nav-btn.active {
+    background: rgba(99, 102, 241, 0.25);
+    color: white;
+  }
+
+  .table-header th {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+  }
+
+  .table-row td {
+    padding: 13px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+    color: #374151;
+  }
+
+  .table-row:last-child td {
+    border-bottom: none;
+  }
+
+  .table-row:hover td {
+    background: #fafafa;
+  }
+
+  .score-pass {
+    color: #16a34a;
+    font-weight: 600;
+  }
+
+  .score-fail {
+    color: #dc2626;
+    font-weight: 600;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transition: width 0.6s ease;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .loading-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    color: #64748b;
+    font-size: 15px;
+    gap: 8px;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
 }
