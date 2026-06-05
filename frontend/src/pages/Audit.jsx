@@ -1,11 +1,8 @@
-import { useContext } from "react";
-import { StudentContext } from "../context/StudentContext";
+import { useEffect, useState } from "react";
 
-function StatusCard({
-  title,
-  value,
-  color,
-}) {
+const API = "http://localhost:8000";
+
+function StatusCard({ title, value, color }) {
   return (
     <div
       style={{
@@ -13,7 +10,8 @@ function StatusCard({
         color: "white",
         padding: "20px",
         borderRadius: "12px",
-        width: "250px",
+        minWidth: "220px",
+        flex: 1,
       }}
     >
       <h3>{title}</h3>
@@ -22,78 +20,53 @@ function StatusCard({
   );
 }
 
-export default function Audit() {
-  const { studentData } =
-    useContext(StudentContext);
-
-  const data =
-    studentData[0]["課業學習"];
-
-  const plan =
-    data.coursePlan;
-
-  const total =
-    data.totalAverageScore;
-
-  const earnedCredits =
-    Number(total.totalCredits);
-
-  const requiredCredits =
-    Number(plan.graduationCredit);
-
-  const remainCredits =
-    requiredCredits -
-    earnedCredits;
-
-  const alerts = [
-    plan.requiredRemark,
-    plan.groupRemark,
-    plan.liberalTotal,
-    plan.commonPhysical,
-  ].filter(
-    (item) =>
-      item &&
-      item !== "[]" &&
-      item.trim() !== ""
+function Section({ title, children }) {
+  return (
+    <div
+      style={{
+        background: "white",
+        padding: "20px",
+        marginTop: "20px",
+        borderRadius: "12px",
+      }}
+    >
+      <h2>{title}</h2>
+      {children}
+    </div>
   );
+}
 
-  const graduation =
-    remainCredits <= 0 &&
-    alerts.length === 0;
+export default function Audit({ studentId }) {
+  const [audit, setAudit] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API}/audit/${studentId}`)
+      .then((r) => r.json())
+      .then(setAudit)
+      .finally(() => setLoading(false));
+  }, [studentId]);
+
+  if (loading) return <div>載入中...</div>;
+  if (!audit) return <div>載入失敗</div>;
+
+  const { summary, required, group, general, physical, elective } = audit;
 
   return (
     <div>
-      <h1>
-        🎓 畢業審核
-      </h1>
+      <h1>🎓 畢業審核</h1>
 
       {/* 狀態卡 */}
-      <div
-        style={{
-          display: "flex",
-          gap: "20px",
-          flexWrap: "wrap",
-          marginTop: "20px",
-        }}
-      >
+      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: "20px" }}>
         <StatusCard
-          title="已修學分"
-          value={`${earnedCredits} / ${requiredCredits}`}
+          title="已修總學分"
+          value={`${summary.total_earned.toFixed(1)} / ${summary.total_required}`}
           color="#2563eb"
         />
-
         <StatusCard
-          title="剩餘學分"
-          value={remainCredits}
+          title="剩餘總學分"
+          value={(summary.total_required - summary.total_earned).toFixed(1)}
           color="#dc2626"
-        />
-
-        <StatusCard
-          title="系排名"
-          value={
-            total.rankingDepartment
-          }
-          color="#16a34a"
         />
       </div>
 
@@ -103,104 +76,85 @@ export default function Audit() {
           marginTop: "20px",
           padding: "20px",
           borderRadius: "12px",
-          background:
-            graduation
-              ? "#dcfce7"
-              : "#fee2e2",
+          background: summary.is_graduated ? "#dcfce7" : "#fee2e2",
         }}
       >
-        <h2>
-          {graduation
-            ? "✅ 符合畢業資格"
-            : "❌ 尚未符合畢業資格"}
-        </h2>
+        <h2>{summary.is_graduated ? "✅ 符合畢業資格" : "❌ 尚未符合畢業資格"}</h2>
+      </div>
 
-        {!graduation && (
-          <p>
-            目前已取得
-            {" "}
-            {earnedCredits}
-            {" "}
-            學分，
-            尚缺
-            {" "}
-            {remainCredits}
-            {" "}
-            學分。
+      {/* 專業必修 */}
+      <Section title={`📌 專業必修 ${required.is_passed ? "✅" : "❌"}`}>
+        <p>
+          已取得：{required.credits.toFixed(1)} / {required.required_credits} 學分
+        </p>
+        {required.missing.length > 0 && (
+          <>
+            <p style={{ color: "#dc2626" }}>尚缺課程：</p>
+            <ul>
+              {required.missing.map((name, i) => <li key={i}>{name}</li>)}
+            </ul>
+          </>
+        )}
+      </Section>
+
+      {/* 群修 */}
+      <Section title={`📚 專業群修 ${group.is_passed ? "✅" : "❌"}`}>
+        <p>已計入：{group.used_credits.toFixed(1)} / {group.required_credits} 學分</p>
+        <p>群A（需 6 學分）：{group.group_credits["群A"]?.toFixed(1)} 學分 {group.group_a_ok ? "✅" : "❌"}</p>
+        <p>BCDE 達標群數：{group.domain_count} / 3 {group.domain_ok ? "✅" : "❌"}</p>
+        {Object.entries(group.group_credits)
+          .filter(([name]) => name !== "群A")
+          .map(([name, credit]) => (
+            <p key={name} style={{ marginLeft: "16px" }}>
+              {name}：{credit.toFixed(1)} 學分
+            </p>
+          ))}
+      </Section>
+
+      {/* 通識 */}
+      <Section title={`🌐 通識 ${general.is_passed ? "✅" : "❌"}`}>
+        {Object.entries(general.display)
+          .filter(([key]) => key !== "核通" && key !== "缺額")
+          .map(([key, val]) => (
+            <p key={key}>{key}：{val}</p>
+          ))}
+        <p>
+          核通：{general.display["核通"].completed_count} / {general.display["核通"].required_domains} 領域
+          （{general.display["核通"].completed_domains.join("、") || "無"}）
+        </p>
+        {Object.entries(general.display["缺額"]).some(([, v]) => v > 0) && (
+          <>
+            <p style={{ color: "#dc2626", marginTop: "10px" }}>尚缺：</p>
+            <ul>
+              {Object.entries(general.display["缺額"])
+                .filter(([, v]) => v > 0)
+                .map(([label, val]) => (
+                  <li key={label}>{label}：{val.toFixed(1)} 學分</li>
+                ))}
+            </ul>
+          </>
+        )}
+      </Section>
+
+      {/* 體育 */}
+      <Section title={`🏃 體育 ${physical.is_passed ? "✅" : "❌"}`}>
+        <p>已修：{physical.used_credits.toFixed(1)} / {physical.required_credits} 學分</p>
+        {physical.shortage > 0 && (
+          <p style={{ color: "#dc2626" }}>尚缺：{physical.shortage.toFixed(1)} 學分</p>
+        )}
+      </Section>
+
+      {/* 自由選修 */}
+      <Section title={`🔖 自由選修 ${elective.is_passed ? "✅" : "❌"}`}>
+        <p>
+          已修：{elective.total_credits.toFixed(1)} / {elective.required_credits.toFixed(1)} 學分
+        </p>
+        {!elective.is_passed && (
+          <p style={{ color: "#dc2626" }}>
+            尚缺：{(elective.required_credits - elective.total_credits).toFixed(1)} 學分
           </p>
         )}
-      </div>
-
-      {/* 尚缺項目 */}
-      <div
-        style={{
-          background: "white",
-          padding: "20px",
-          marginTop: "20px",
-          borderRadius: "12px",
-        }}
-      >
-        <h2>
-          ⚠ 尚缺項目
-        </h2>
-
-        {alerts.length === 0 ? (
-          <p>
-            無缺額項目
-          </p>
-        ) : (
-          <ul>
-            {alerts.map(
-              (
-                item,
-                index
-              ) => (
-                <li
-                  key={index}
-                  style={{
-                    marginBottom:
-                      "10px",
-                  }}
-                >
-                  {item}
-                </li>
-              )
-            )}
-          </ul>
-        )}
-      </div>
-
-      {/* 畢業門檻資訊 */}
-      <div
-        style={{
-          background: "white",
-          padding: "20px",
-          marginTop: "20px",
-          borderRadius: "12px",
-        }}
-      >
-        <h2>
-          📋 畢業門檻
-        </h2>
-
-        <p>
-          總畢業學分：
-          {" "}
-          {plan.graduationCredit}
-        </p>
-
-        <p>
-          必修需求：
-          {" "}
-          {plan.requiredPoint}
-        </p>
-
-        <p>
-          群修需求：
-          {" "}
-          {plan.groupPoint}
-        </p>
-      </div>
+      </Section>
     </div>
   );
 }

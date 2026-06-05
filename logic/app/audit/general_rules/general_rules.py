@@ -161,6 +161,7 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
         lang_rows = session.execute(lang_stmt).all()
 
     courses = []
+    seen_codes: set[str] = set()
     for row in domain_rows:
         domains = row.domains or ()
         courses.append({
@@ -173,8 +174,11 @@ def _fetch_general_courses(student_id: str) -> list[dict]:
             "domains":       tuple(domains),
             "passed":        _is_passed(row.score, row.course_status),
         })
+        seen_codes.add(row.course_code)
 
     for row in lang_rows:
+        if row.course_code in seen_codes:
+            continue
         courses.append({
             "course_name":   row.course_name,
             "course_code":   row.course_code,

@@ -3,16 +3,10 @@ import { createContext, useState } from "react";
 export const StudentContext = createContext();
 
 export function StudentProvider({ children }) {
-  const [studentData, setStudentData] =
-    useState(null);
+  const [studentId, setStudentId] = useState(null);
 
   return (
-    <StudentContext.Provider
-      value={{
-        studentData,
-        setStudentData,
-      }}
-    >
+    <StudentContext.Provider value={{ studentId, setStudentId }}>
       {children}
     </StudentContext.Provider>
   );
