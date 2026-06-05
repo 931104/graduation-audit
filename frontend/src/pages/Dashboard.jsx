@@ -1,5 +1,13 @@
 import { useContext } from "react";
-import { StudentContext } from "../context/StudentContext";
+
+import { StudentContext }
+  from "../context/StudentContext";
+
+import StatCard
+  from "../components/StatCard";
+
+import CreditPieChart
+  from "../components/CreditPieChart";
 
 export default function Dashboard() {
   const { studentData } =
@@ -9,15 +17,19 @@ export default function Dashboard() {
     studentData[0]["課業學習"];
 
   const student =
-    studentData[0]["學生基本資料"];
+    data.aboutMe;
 
   const total =
     data.totalAverageScore;
 
+  const plan =
+    data.coursePlan;
+
   const earnedCredits =
     Number(total.totalCredits);
 
-  const requiredCredits = 128;
+  const requiredCredits =
+    Number(plan.graduationCredit);
 
   const remainCredits =
     requiredCredits -
@@ -30,90 +42,162 @@ export default function Dashboard() {
       100
     ).toFixed(1);
 
+  const averageScore =
+    total.averageScore;
+
+  const semesters =
+    data.gradeRecordList || [];
+
+  const latestSemester =
+  semesters[0];
+
+  const latestCourses =
+    latestSemester?.GradeRecords?.slice(
+      0,
+      5
+    ) || [];
+
+  const alerts = [
+    plan.requiredRemark,
+    plan.liberalTotal,
+    plan.commonPhysical,
+  ].filter(Boolean);
+
   return (
     <div>
-      {/* 測試區塊 */}
+
+    <div
+      style={{
+        background: "#2563eb",
+        color: "white",
+        padding: "20px",
+        borderRadius: "12px",
+        marginBottom: "20px",
+      }}
+    >
+      <h2>
+        🚀 網站開發測試成功
+      </h2>
+
+      <p>
+        如果看到這段文字，
+        代表你修改成功並重新部署了。
+      </p>
+    </div>
+
+    {/* 上方區塊 */}
+    <div
+      style={{
+        display: "flex",
+        gap: "20px",
+        alignItems: "stretch",
+      }}
+    ></div>
+      {/* 上方區塊 */}
       <div
         style={{
-          background: "#2563eb",
-          color: "white",
-          padding: "20px",
-          borderRadius: "12px",
-          marginBottom: "20px",
+          display: "flex",
+          gap: "20px",
+          alignItems: "stretch",
         }}
       >
-        <h2>
-          🚀 網站開發測試成功
-        </h2>
+        {/* 學生資訊 */}
+        <div
+          style={{
+            flex: 1,
+            background: "white",
+            padding: "20px",
+            borderRadius: "12px",
+          }}
+        >
+          <h1>
+            {student.chineseName}
+          </h1>
 
-        <p>
-          如果你看到這段文字，
-          代表 Vercel 已成功更新。
-        </p>
-      </div>
+          <p>
+            學號：
+            {student.studentNumber}
+          </p>
 
-      {/* 學生資訊 */}
-      <div
-        style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "12px",
-          marginBottom: "20px",
-        }}
-      >
-        <h2>
-          {student.chineseName}
-        </h2>
+          <p>
+            系所：
+            {student.registerMajor}
+          </p>
 
-        <p>
-          學號：
-          {student.studentId}
-        </p>
+          <p>
+            年級：
+            {
+              student.departmentProgramGrade
+            }
+          </p>
+        </div>
 
-        <p>
-          系所：
-          {student.department}
-        </p>
+        {/* 圓餅圖 */}
+        <div
+          style={{
+            width: "420px",
+            background: "white",
+            borderRadius: "12px",
+            padding: "20px",
+          }}
+        >
+          <h2>
+            學分完成比例
+          </h2>
 
-        <p>
-          年級：
-          {student.grade}
-        </p>
+          <CreditPieChart
+            earned={
+              earnedCredits
+            }
+            remain={
+              remainCredits
+            }
+          />
+        </div>
       </div>
 
       {/* 統計卡 */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(200px,1fr))",
+          display: "flex",
           gap: "20px",
+          flexWrap: "wrap",
+          marginTop: "20px",
         }}
       >
-        <Card
+        <StatCard
           title="已修學分"
-          value={earnedCredits}
+          value={
+            earnedCredits
+          }
         />
 
-        <Card
+        <StatCard
           title="剩餘學分"
-          value={remainCredits}
+          value={
+            remainCredits
+          }
         />
 
-        <Card
+        <StatCard
           title="完成率"
           value={`${progress}%`}
         />
 
-        <Card
+        <StatCard
           title="系排名"
           value={
             total.rankingDepartment
           }
         />
+
+        <StatCard
+          title="平均成績"
+          value={averageScore}
+        />
       </div>
 
-      {/* 進度條 */}
+      {/* 畢業進度 */}
       <div
         style={{
           background: "white",
@@ -122,63 +206,177 @@ export default function Dashboard() {
           marginTop: "20px",
         }}
       >
-        <h3>
-          學分完成比例
-        </h3>
+        <h2>
+          畢業進度
+        </h2>
 
         <p>
           已完成：
           {earnedCredits}
+          學分
         </p>
 
         <p>
           尚缺：
           {remainCredits}
+          學分
         </p>
 
         <div
           style={{
             width: "100%",
             height: "30px",
-            background: "#e5e7eb",
-            borderRadius: "999px",
-            overflow: "hidden",
+            background: "#ddd",
+            borderRadius: "20px",
           }}
         >
           <div
             style={{
               width: `${progress}%`,
               height: "100%",
-              background: "#22c55e",
+              background:
+                "#22c55e",
+              borderRadius:
+                "20px",
             }}
           />
         </div>
       </div>
-    </div>
-  );
-}
 
-function Card({
-  title,
-  value,
-}) {
-  return (
-    <div
-      style={{
-        background: "white",
-        padding: "20px",
-        borderRadius: "12px",
-      }}
-    >
-      <p
+      {/* 最近修課紀錄 */}
+      <div
         style={{
-          color: "#64748b",
+          background: "white",
+          padding: "20px",
+          borderRadius: "12px",
+          marginTop: "20px",
         }}
       >
-        {title}
-      </p>
+        <h2>
+          最近修課紀錄
+        </h2>
 
-      <h2>{value}</h2>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse:
+              "collapse",
+          }}
+        >
+          <thead>
+            <tr>
+              <th
+                style={{
+                  padding:
+                    "10px",
+                }}
+              >
+                課程
+              </th>
+
+              <th
+                style={{
+                  padding:
+                    "10px",
+                }}
+              >
+                學分
+              </th>
+
+              <th
+                style={{
+                  padding:
+                    "10px",
+                }}
+              >
+                成績
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {latestCourses.map(
+              (
+                course,
+                index
+              ) => (
+                <tr
+                  key={index}
+                >
+                  <td
+                    style={{
+                      padding:
+                        "10px",
+                    }}
+                  >
+                    {
+                      course.courseName
+                    }
+                  </td>
+
+                  <td>
+                    {
+                      course.credit
+                    }
+                  </td>
+
+                  <td
+                    style={{
+                      color:
+                        Number(
+                          course.score
+                        ) >=
+                        60
+                          ? "green"
+                          : "red",
+                      fontWeight:
+                        "bold",
+                    }}
+                  >
+                    {
+                      course.score
+                    }
+                  </td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 畢業提醒 */}
+      <div
+        style={{
+          background: "white",
+          padding: "20px",
+          borderRadius: "12px",
+          marginTop: "20px",
+        }}
+      >
+        <h2>
+          ⚠ 畢業提醒
+        </h2>
+
+        {alerts.map(
+          (item, index) => (
+            <div
+              key={index}
+              style={{
+                background:
+                  "#fef3c7",
+                padding:
+                  "12px",
+                borderRadius:
+                  "8px",
+                marginBottom:
+                  "10px",
+              }}
+            >
+              {item}
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }
