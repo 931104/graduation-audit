@@ -1,75 +1,39 @@
-import {
-  useContext,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
-import { StudentContext }
-  from "../context/StudentContext";
+const API = "http://localhost:8000";
 
-export default function Courses() {
-  const { studentData } =
-    useContext(StudentContext);
+export default function Courses({ studentId }) {
+  const [courses, setCourses] = useState([]);
+  const [keyword, setKeyword] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const [keyword, setKeyword] =
-    useState("");
+  useEffect(() => {
+    fetch(`${API}/courses/${studentId}`)
+      .then((r) => r.json())
+      .then(setCourses)
+      .finally(() => setLoading(false));
+  }, [studentId]);
 
-  const semesters =
-    studentData[0]["課業學習"]
-      .gradeRecordList || [];
+  if (loading) return <div>載入中...</div>;
 
-  const courses = [];
-
-  semesters.forEach((semester) => {
-    semester.GradeRecords.forEach(
-      (course) => {
-        courses.push({
-          year:
-            semester.academicYear,
-          semester:
-            semester.semester,
-          courseName:
-            course.courseName,
-          credit:
-            course.credit,
-          score:
-            course.score,
-        });
-      }
-    );
-  });
-
-  const filteredCourses =
-    courses.filter((course) =>
-      course.courseName.includes(
-        keyword
-      )
-    );
+  const filtered = courses.filter((c) =>
+    c.course_name.includes(keyword)
+  );
 
   return (
     <div>
-      <h1
-        style={{
-          marginBottom: "20px",
-        }}
-      >
-        📚 修課紀錄
-      </h1>
+      <h1 style={{ marginBottom: "20px" }}>📚 修課紀錄</h1>
 
       <input
         type="text"
         placeholder="搜尋課程..."
         value={keyword}
-        onChange={(e) =>
-          setKeyword(
-            e.target.value
-          )
-        }
+        onChange={(e) => setKeyword(e.target.value)}
         style={{
           width: "300px",
           padding: "10px",
           borderRadius: "8px",
-          border:
-            "1px solid #ccc",
+          border: "1px solid #ccc",
           marginBottom: "20px",
         }}
       />
@@ -77,138 +41,54 @@ export default function Courses() {
       <table
         style={{
           width: "100%",
-          borderCollapse:
-            "collapse",
+          borderCollapse: "collapse",
           background: "white",
           borderRadius: "12px",
           overflow: "hidden",
-          boxShadow:
-            "0 2px 8px rgba(0,0,0,0.08)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
         }}
       >
-        <thead
-          style={{
-            background: "#0f172a",
-            color: "white",
-          }}
-        >
+        <thead style={{ background: "#0f172a", color: "white" }}>
           <tr>
-            <th
-              style={{
-                padding: "12px",
-              }}
-            >
-              學年
-            </th>
-
-            <th
-              style={{
-                padding: "12px",
-              }}
-            >
-              學期
-            </th>
-
-            <th
-              style={{
-                padding: "12px",
-              }}
-            >
-              課程名稱
-            </th>
-
-            <th
-              style={{
-                padding: "12px",
-              }}
-            >
-              學分
-            </th>
-
-            <th
-              style={{
-                padding: "12px",
-              }}
-            >
-              成績
-            </th>
+            <th style={{ padding: "12px" }}>學年</th>
+            <th style={{ padding: "12px" }}>學期</th>
+            <th style={{ padding: "12px" }}>課程名稱</th>
+            <th style={{ padding: "12px" }}>學分</th>
+            <th style={{ padding: "12px" }}>成績</th>
+            <th style={{ padding: "12px" }}>狀態</th>
           </tr>
         </thead>
-
         <tbody>
-          {filteredCourses.map(
-            (course, index) => (
-              <tr
-                key={index}
+          {filtered.map((course, index) => (
+            <tr key={index} style={{ borderBottom: "1px solid #eee" }}>
+              <td style={{ padding: "12px" }}>{course.academic_year}</td>
+              <td style={{ padding: "12px" }}>{course.academic_semester}</td>
+              <td style={{ padding: "12px" }}>{course.course_name}</td>
+              <td style={{ padding: "12px" }}>{course.credit}</td>
+              <td
                 style={{
-                  borderBottom:
-                    "1px solid #eee",
+                  padding: "12px",
+                  color:
+                    course.score !== null
+                      ? course.score >= 60
+                        ? "#16a34a"
+                        : "#dc2626"
+                      : "#64748b",
+                  fontWeight: "bold",
                 }}
               >
-                <td
-                  style={{
-                    padding: "12px",
-                  }}
-                >
-                  {course.year}
-                </td>
-
-                <td
-                  style={{
-                    padding: "12px",
-                  }}
-                >
-                  {course.semester}
-                </td>
-
-                <td
-                  style={{
-                    padding: "12px",
-                  }}
-                >
-                  {course.courseName}
-                </td>
-
-                <td
-                  style={{
-                    padding: "12px",
-                  }}
-                >
-                  {course.credit}
-                </td>
-
-                <td
-                  style={{
-                    padding: "12px",
-                    color:
-                      Number(
-                        course.score
-                      ) >= 60
-                        ? "#16a34a"
-                        : "#dc2626",
-                    fontWeight:
-                      "bold",
-                  }}
-                >
-                  {course.score}
-                </td>
-              </tr>
-            )
-          )}
+                {course.score !== null ? course.score : "—"}
+              </td>
+              <td style={{ padding: "12px", color: "#64748b", fontSize: "13px" }}>
+                {course.course_status === "有成績" ? "" : course.course_status}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
 
-      <div
-        style={{
-          marginTop: "15px",
-          color: "#64748b",
-        }}
-      >
-        共找到{" "}
-        {
-          filteredCourses.length
-        }{" "}
-        門課程
+      <div style={{ marginTop: "15px", color: "#64748b" }}>
+        共找到 {filtered.length} 門課程
       </div>
     </div>
   );
